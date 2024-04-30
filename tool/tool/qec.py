@@ -136,14 +136,23 @@ clifford_transform_dict = {
     },
     'CZ': {
         '--': '--',
-        'X-': 'XZ',
         '-X': 'ZX',
-        'XX': 'YY',
-        'Y-': 'YZ',
         '-Y': 'ZY',
-        'YY': 'XX',
-        'Z-': 'Z-',
         '-Z': '-Z',
+
+        'X-': 'XZ',
+        'XX': 'YY',
+        'XY': 'YX',
+        'XZ': 'X-',
+
+        'Y-': 'YZ',
+        'YX': 'XY',
+        'YY': 'XX',
+        'YZ': 'Y-',
+
+        'Z-': 'Z-',
+        'ZX': '-X',
+        'ZY': '-Y',
         'ZZ': 'ZZ',
     }
 }
