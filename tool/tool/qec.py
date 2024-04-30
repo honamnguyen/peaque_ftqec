@@ -232,6 +232,9 @@ def get_sequence(name: str) -> Tuple[Tuple[str, Tuple[int]]]:
 
     References:
         Goto (efficient Steane encoding): https://www.nature.com/articles/srep19578
+        Aliferis, Gottesman, Preskill: https://arxiv.org/abs/quant-ph/0504218
+            - Cat encoding (DiVinzenzo-Shor): Fig. 6
+
     """
     sequence_dict = {
         'Goto_1c': (
@@ -249,6 +252,12 @@ def get_sequence(name: str) -> Tuple[Tuple[str, Tuple[int]]]:
             ('CX', (2, 4)),
             ('CX', (3, 4))
         ),
+        'cat_encoding_divicenzoshor': (
+            ('H', (1,)),
+            ('CX', (1, 2)),
+            ('CX', (1, 0)), ('CX', (2, 3)),
+        ),
+
     }
     return sequence_dict[name]
 

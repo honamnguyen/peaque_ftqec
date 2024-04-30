@@ -1,6 +1,6 @@
 import os
 import itertools
-from typing import List
+from typing import List, Tuple
 from tool import qec
 from tool.testing import run_test
 
@@ -130,6 +130,29 @@ def modulo_stabilizers(bad_locations, stabilizer_group):
             remaining_bad_locations.append(updated_bad_locations[-1])
     return updated_bad_locations, remaining_bad_locations
 
+def remove_z_errors(locations: List[Tuple]) -> List[Tuple]:
+    '''
+    Remove Z errors from the locations list
+    
+    Args:
+        locations (List[Tuple[int, Tuple[str, Tuple[int]]]]): List of locations
+        
+    Returns:
+        List[Tuple[int, Tuple[str, Tuple[int]]]]: Updated list of locations with Z errors removed
+    '''
+    remove_z = {'X':'X', 'Y':'X', 'Z':'-', '-':'-'}
+    updated_locations = []
+    remained_locations = []
+    for loc in locations:
+        updated_error = ''
+        for p in loc[-2]:
+            updated_error += remove_z[p]
+        weight = qec.pauli_weight(updated_error)
+        updated_locations.append(tuple(list(loc) + [updated_error, weight]))
+        if weight > 1:
+            remained_locations.append(updated_locations[-1])
+    return updated_locations, remained_locations
+
 def print_locations(locations):
     """
     Print the locations of faults and the final errors.
@@ -137,8 +160,10 @@ def print_locations(locations):
     Args:
         locations (List): List of locations.
     """
-    equiv_error_computed = len(locations[0]) > 4
-    print(' idx  gate  location  fault  final_error  equiv_error  weight')
+    first_line = ' idx  gate  location  fault  final_error'
+    if len(locations[0]) > 4: first_line += '  equiv_error  weight'
+    if len(locations[0]) > 6: first_line += '  remove_Zerr  weight'
+    print(first_line)
     for loc in locations:
         print_str = str(loc[0]).center(5)
         print_str += str(loc[1][0]).center(6)
@@ -146,9 +171,13 @@ def print_locations(locations):
         print_str += str(gate_loc).center(10)
         print_str += str(loc[2]).center(7)
         print_str += str(loc[3]).center(13)
-        if equiv_error_computed:
+        if len(locations[0]) > 4:
             print_str += str(loc[4]).center(13)
             print_str += str(loc[5]).center(8)
+        if len(locations[0]) > 6:
+            print_str += str(loc[6]).center(13)
+            print_str += str(loc[7]).center(8)
+
         print(print_str)
 
 
@@ -190,6 +219,13 @@ def test_modulo_stabilizers():
     print('>> modulo_stabilizers - No Test <<')
     pass
 
+def test_remove_z_errors():
+    """
+    Test the remove_z_errors function.
+    """
+    print('>> remove_z_errors - No Test <<')
+    pass
+
 def test_all():
 
     print(f'\nTesting functions in {os.path.basename(__file__)} ...\n')
@@ -197,6 +233,7 @@ def test_all():
     test_get_fault_string()
     test_get_bad_locations()
     test_modulo_stabilizers()
+    test_remove_z_errors()
     print()
     print()
 
