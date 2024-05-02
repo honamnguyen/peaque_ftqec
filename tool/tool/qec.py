@@ -282,7 +282,7 @@ def get_sequence(name: str) -> Tuple[Tuple[str, Tuple[int]]]:
             ('CZ', (4, 5)),
             ('H', (4,)), ('H', (5,)), ('H', (6,)),
         ),
-        'flag_bridge_CZ_SX1': (
+        'flag_bridge_CZ_SZ1': (
             ('H', (7,)), ('H', (8,)), ('H', (9,)),
             ('CZ', (7, 8)),
             ('H', (8,)),
@@ -296,13 +296,13 @@ def get_sequence(name: str) -> Tuple[Tuple[str, Tuple[int]]]:
             ('CZ', (7, 8)),
             ('H', (7,)), ('H', (8,)), ('H', (9,)),
         ),
-        'flag_bridge_CZ_SX2': (
+        'flag_bridge_CZ_SZ2': (
             ('H', (8,)), ('H', (7,)), ('H', (9,)),
             ('CZ', (8, 7)),
             ('H', (7,)),
             ('CZ', (7, 9)), ('CZ', (2, 8)),
             ('CZ', (4, 8)),
-            ('CZ', (3, 7)), ('H', (9,)),
+            ('CZ', (1, 7)), ('H', (9,)),
             ('CZ', (5, 9)),
             ('H', (9,)),
             ('CZ', (7, 9)),
@@ -310,7 +310,7 @@ def get_sequence(name: str) -> Tuple[Tuple[str, Tuple[int]]]:
             ('CZ', (8, 7)),
             ('H', (8,)), ('H', (7,)), ('H', (9,)),
         ),
-        'flag_bridge_CZ_SX3': (
+        'flag_bridge_CZ_SZ3': (
             ('H', (10,)), ('H', (8,)), ('H', (9,)),
             ('CZ', (10, 8)),
             ('H', (8,)),
