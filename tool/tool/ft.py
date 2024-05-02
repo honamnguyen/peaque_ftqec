@@ -82,9 +82,9 @@ def get_bad_locations(
                 fault_string = qec.clifford_transform(list(fault_string), gate, position)
 
             final_error = ''.join(fault_string[:num_datas]) + '|' + ''.join(fault_string[num_datas:])
-            all_locs.append((i, gate_seq[i], fault, final_error))
+            all_locs.append([i, gate_seq[i], fault, final_error])
             if qec.pauli_weight(fault_string[:num_datas]) > 1:
-                bad_locs.append((i, gate_seq[i], fault, final_error))
+                bad_locs.append([i, gate_seq[i], fault, final_error])
 
     if verbose == 'bad locations':
         print(' idx  gate  location  fault  final_error')
@@ -105,6 +105,47 @@ def get_bad_locations(
             print_str += str(loc[3]).center(13)
             print(print_str)
     return bad_locs, all_locs
+
+def update_locations(locations: List, gate_sequence: Tuple, num_datas: int) -> List:
+    """
+    Updates the locations based on the gate sequence.
+
+    Args:
+        locations (List): List of locations.
+        gate_sequence (Tuple): Gate sequence.
+        num_datas (int): Number of data qubits.
+
+    Returns:
+        List: Updated list of locations.
+    """
+    updated_locs = []
+    for loc in locations:
+        fault_string = list(''.join(loc[-1].split('|')))
+        for gate, position in gate_sequence:
+            fault_string = qec.clifford_transform(list(fault_string), gate, position)
+        final_error = ''.join(fault_string[:num_datas]) + '|' + ''.join(fault_string[num_datas:])
+        updated_locs.append(loc[:-1] + [final_error])
+    return updated_locs
+
+def reset_ancillas(locations: List) -> Tuple[List, List]:
+    """
+    Reset the ancilla qubits in the given locations.
+
+    Args:
+        locations (List[str]): List of locations containing ancilla qubits.
+
+    Returns:
+        Tuple[List, List]: Updated locations with resetted ancillas and ancillas measurment outcomes.
+    """
+    triggered = {'X': 1, 'Y': 1, 'Z': 0, '-': 0}
+    updated_locations = []
+    outcomes = []    
+    for loc in locations:
+        datas, ancillas = loc[-1].split('|')
+        outcome = [triggered[p] for p in ancillas]
+        outcomes.append(outcome)
+        updated_locations.append(loc[:-1] + [datas + '|' + '-'*len(ancillas)])
+    return updated_locations, outcomes
 
 def modulo_stabilizers(bad_locations, stabilizer_group):
     """
@@ -153,28 +194,32 @@ def remove_z_errors(locations: List[Tuple]) -> List[Tuple]:
             remained_locations.append(updated_locations[-1])
     return updated_locations, remained_locations
 
-def print_locations(locations):
+def print_locations(locations, remove_z=False):
     """
     Print the locations of faults and the final errors.
 
     Args:
         locations (List): List of locations.
     """
+    if len(locations) == 0:
+        print('No bad locations')
+        return
     first_line = ' idx  gate  location  fault  final_error'
     if len(locations[0]) > 4: first_line += '  equiv_error  weight'
-    if len(locations[0]) > 6: first_line += '  remove_Zerr  weight'
+    if remove_z: first_line += '  remove_Zerr  weight'
     print(first_line)
     for loc in locations:
         print_str = str(loc[0]).center(5)
         print_str += str(loc[1][0]).center(6)
-        gate_loc = [i + 1 for i in loc[1][1]]
+        # gate_loc = [i + 1 for i in loc[1][1]]
+        gate_loc = [i for i in loc[1][1]]
         print_str += str(gate_loc).center(10)
         print_str += str(loc[2]).center(7)
         print_str += str(loc[3]).center(13)
         if len(locations[0]) > 4:
             print_str += str(loc[4]).center(13)
             print_str += str(loc[5]).center(8)
-        if len(locations[0]) > 6:
+        if remove_z:
             print_str += str(loc[6]).center(13)
             print_str += str(loc[7]).center(8)
 
@@ -212,6 +257,20 @@ def test_get_bad_locations():
     print('>> get_bad_locations - No Test <<')
     pass
 
+def test_update_locations():
+    """
+    Test the update_locations function.
+    """
+    print('>> update_locations - No Test <<')
+    pass
+
+def test_reset_ancillas():
+    """
+    Test the reset_ancillas function.
+    """
+    print('>> reset_ancillas - No Test <<')
+    pass
+
 def test_modulo_stabilizers():
     """
     Test the modulo_stabilizers function.
@@ -232,6 +291,8 @@ def test_all():
     test_get_faults()
     test_get_fault_string()
     test_get_bad_locations()
+    test_update_locations()
+    test_reset_ancillas()
     test_modulo_stabilizers()
     test_remove_z_errors()
     print()
