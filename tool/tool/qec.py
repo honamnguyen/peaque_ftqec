@@ -266,7 +266,64 @@ def get_sequence(name: str) -> Tuple[Tuple[str, Tuple[int]]]:
             ('CX', (1, 2)),
             ('CX', (1, 0)), ('CX', (2, 3)),
         ),
-
+        # measurement is currently in +/- so need to add Hadamard on last 3 qubits
+        'flag_bridge_CZ_single': (
+            ('H', (4,)), ('H', (5,)), ('H', (6,)),
+            ('CZ', (4, 5)),
+            ('H', (5,)),
+            ('CZ', (5, 6)),
+            ('CZ', (0, 4)),
+            ('CZ', (1, 4)),
+            ('CZ', (2, 5)), ('H', (6,)),
+            ('CZ', (3, 6)),
+            ('H', (6,)),
+            ('CZ', (5, 6)),
+            ('H', (5,)),
+            ('CZ', (4, 5)),
+            ('H', (4,)), ('H', (5,)), ('H', (6,)),
+        ),
+        'flag_bridge_CZ_SX1': (
+            ('H', (7,)), ('H', (8,)), ('H', (9,)),
+            ('CZ', (7, 8)),
+            ('H', (8,)),
+            ('CZ', (8, 9)), ('CZ', (0, 7)),
+            ('CZ', (1, 7)),
+            ('CZ', (2, 8)), ('H', (9,)),
+            ('CZ', (3, 9)),
+            ('H', (9,)),
+            ('CZ', (8, 9)),
+            ('H', (8,)),
+            ('CZ', (7, 8)),
+            ('H', (7,)), ('H', (8,)), ('H', (9,)),
+        ),
+        'flag_bridge_CZ_SX2': (
+            ('H', (8,)), ('H', (7,)), ('H', (9,)),
+            ('CZ', (8, 7)),
+            ('H', (7,)),
+            ('CZ', (7, 9)), ('CZ', (2, 8)),
+            ('CZ', (4, 8)),
+            ('CZ', (3, 7)), ('H', (9,)),
+            ('CZ', (5, 9)),
+            ('H', (9,)),
+            ('CZ', (7, 9)),
+            ('H', (7,)),
+            ('CZ', (8, 7)),
+            ('H', (8,)), ('H', (7,)), ('H', (9,)),
+        ),
+        'flag_bridge_CZ_SX3': (
+            ('H', (10,)), ('H', (8,)), ('H', (9,)),
+            ('CZ', (10, 8)),
+            ('H', (8,)),
+            ('CZ', (8, 9)), ('CZ', (5, 10)),
+            ('CZ', (6, 10)),
+            ('CZ', (2, 8)), ('H', (9,)),
+            ('CZ', (3, 9)),
+            ('H', (9,)),
+            ('CZ', (8, 9)),
+            ('H', (8,)),
+            ('CZ', (10, 8)),
+            ('H', (10,)), ('H', (8,)), ('H', (9,)),
+        ),
     }
     return sequence_dict[name]
 
@@ -319,6 +376,22 @@ def lowest_weight_equivalent(error: List[str], stabilizer_group: List[List[str]]
     return min_weight_error, min_weight
 
 ############################## TESTING ##############################
+
+def test_clifford_transform_dict():
+
+    test_cases = {}
+    for gate in ['CX', 'CZ']:
+        for p in itertools.product(['-','X','Y','Z'],repeat=2):
+            error = ''.join(p)
+            if pauli_weight(error) == 2:
+                first = clifford_transform_dict['CZ'][error[0]+'-']
+                second = clifford_transform_dict['CZ']['-'+error[1]]
+                test_cases[error] = ''.join(compose_two_paulis(first,second))
+            else:
+                test_cases[error] = ''.join(clifford_transform_dict['CZ'][error])
+    run_test(test_cases, lambda input: ''.join(clifford_transform_dict['CZ'][input]), 'clifford_transform_dict')
+
+
 def test_compose_paulis():
     """
     Tests the compose_paulis method.
@@ -375,6 +448,7 @@ import os
 def test_all():
     print(f'\nTesting functions in {os.path.basename(__file__)} ...\n')
     test_compose_paulis()
+    test_clifford_transform_dict()
     test_clifford_transform_sequence()
     test_compute_stabilizer_group()
     test_lowest_weight_equivalent()
