@@ -147,7 +147,7 @@ def reset_ancillas(locations: List) -> Tuple[List, List]:
         updated_locations.append(loc[:-1] + [datas + '|' + '-'*len(ancillas)])
     return updated_locations, outcomes
 
-def modulo_stabilizers(bad_locations, stabilizer_group):
+def modulo_stabilizers(bad_locations, stabilizer_group, return_inds=False):
     """
     Modulo the bad locations with the stabilizer group to find the
     smallest-weight equivalent errors.
@@ -163,13 +163,18 @@ def modulo_stabilizers(bad_locations, stabilizer_group):
     """
     updated_bad_locations = []
     remaining_bad_locations = []
-    for loc in bad_locations:
+    remaining_bad_inds = []
+    for i,loc in enumerate(bad_locations):
         error = list(loc[-1].split('|')[0])
         equiv_error, weight = qec.lowest_weight_equivalent(error, stabilizer_group)
         updated_bad_locations.append(tuple(list(loc) + [''.join(equiv_error), weight]))
         if weight > 1:
             remaining_bad_locations.append(updated_bad_locations[-1])
-    return updated_bad_locations, remaining_bad_locations
+            remaining_bad_inds.append(i)
+    if return_inds:
+        return updated_bad_locations, remaining_bad_locations, remaining_bad_inds
+    else:
+        return updated_bad_locations, remaining_bad_locations
 
 def remove_z_errors(locations: List[Tuple]) -> List[Tuple]:
     '''
@@ -194,7 +199,7 @@ def remove_z_errors(locations: List[Tuple]) -> List[Tuple]:
             remained_locations.append(updated_locations[-1])
     return updated_locations, remained_locations
 
-def print_locations(locations, remove_z=False):
+def print_locations(locations, remove_z=False, ancilla_outcomes=None):
     """
     Print the locations of faults and the final errors.
 
@@ -207,12 +212,15 @@ def print_locations(locations, remove_z=False):
     first_line = ' idx  gate  location  fault  final_error'
     if len(locations[0]) > 4: first_line += '  equiv_error  weight'
     if remove_z: first_line += '  remove_Zerr  weight'
+    if ancilla_outcomes is not None: 
+        first_line += '  ancilla_outcomes'
+        anc_out_len = max(len(ancilla_outcomes[0]),len('ancilla_outcomes')) + 2
     print(first_line)
-    for loc in locations:
+    for i,loc in enumerate(locations):
         print_str = str(loc[0]).center(5)
         print_str += str(loc[1][0]).center(6)
         # gate_loc = [i + 1 for i in loc[1][1]]
-        gate_loc = [i for i in loc[1][1]]
+        gate_loc = [j for j in loc[1][1]]
         print_str += str(gate_loc).center(10)
         print_str += str(loc[2]).center(7)
         print_str += str(loc[3]).center(13)
@@ -222,6 +230,8 @@ def print_locations(locations, remove_z=False):
         if remove_z:
             print_str += str(loc[6]).center(13)
             print_str += str(loc[7]).center(8)
+        if ancilla_outcomes is not None:
+            print_str += str(ancilla_outcomes[i]).center(anc_out_len)
 
         print(print_str)
 
