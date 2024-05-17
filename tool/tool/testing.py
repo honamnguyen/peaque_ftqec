@@ -5,7 +5,9 @@ def run_test(test_cases: Dict, func: Callable, name: str, outfunc: Callable = la
     Run test cases for a given function and print the results.
 
     Parameters:
-    - test_cases (dict): A dictionary containing the test cases where the keys are the inputs and the values are the expected outputs.
+    - test_cases:
+        (dict) A dictionary containing the test cases where the keys are the inputs and the values are the expected outputs.
+        (list) A list of tuples containing the test cases where the first element of each tuple is the input and the second element is the expected output.
     - func (function): The function to be tested.
     - name (str): The name of the test.
     - outfunc (function, optional): A function to transform the output and expected values before comparison. Defaults to the identity function.
@@ -15,7 +17,14 @@ def run_test(test_cases: Dict, func: Callable, name: str, outfunc: Callable = la
     """
     results = []
     failed_before = False
-    for input, answer in test_cases.items():
+
+    # Accept different formats for test_cases
+    if type(test_cases) is dict:
+        test_cases = test_cases.items()
+    elif type(test_cases) is list:
+        test_cases = zip(*test_cases)
+
+    for input, answer in test_cases:
         output = func(input)
         results.append(outfunc(output) == outfunc(answer))
         if results[-1] == False:
