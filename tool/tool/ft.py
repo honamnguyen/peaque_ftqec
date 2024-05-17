@@ -199,7 +199,66 @@ def remove_z_errors(locations: List[Tuple]) -> List[Tuple]:
             remained_locations.append(updated_locations[-1])
     return updated_locations, remained_locations
 
-def print_locations(locations, remove_z=False, ancilla_outcomes=None):
+def remove_x_errors(locations: List[Tuple]) -> List[Tuple]:
+    '''
+    Remove X errors from the locations list
+    
+    Args:
+        locations (List[Tuple[int, Tuple[str, Tuple[int]]]]): List of locations
+        
+    Returns:
+        List[Tuple[int, Tuple[str, Tuple[int]]]]: Updated list of locations with Z errors removed
+    '''
+    remove_x = {'X':'-', 'Y':'Z', 'Z':'Z', '-':'-'}
+    updated_locations = []
+    remained_locations = []
+    for loc in locations:
+        updated_error = ''
+        for p in loc[-2]:
+            updated_error += remove_x[p]
+        weight = qec.pauli_weight(updated_error)
+        updated_locations.append(tuple(list(loc) + [updated_error, weight]))
+        if weight > 1:
+            remained_locations.append(updated_locations[-1])
+    return updated_locations, remained_locations
+
+# def print_locations(locations, remove_z=False, ancilla_outcomes=None):
+#     """
+#     Print the locations of faults and the final errors.
+
+#     Args:
+#         locations (List): List of locations.
+#     """
+#     if len(locations) == 0:
+#         print('No bad locations')
+#         return
+#     first_line = ' idx  gate  location  fault    final_error'
+#     if len(locations[0]) > 4: first_line += '  equiv_error  weight'
+#     if remove_z: first_line += '  remove_Zerr  weight'
+#     if ancilla_outcomes is not None: 
+#         assert len(ancilla_outcomes) == len(locations)
+#         first_line += '    ancilla_outcomes'
+#         anc_out_len = max(len(ancilla_outcomes[0]),len('ancilla_outcomes')) + 6
+#     print(first_line)
+#     for i,loc in enumerate(locations):
+#         print_str = str(loc[0]).center(5)
+#         print_str += str(loc[1][0]).center(6)
+#         gate_loc = [j for j in loc[1][1]]
+#         print_str += str(gate_loc).center(10)
+#         print_str += str(loc[2]).center(7)
+#         print_str += str(loc[3]).center(15)
+#         if len(locations[0]) > 4:
+#             print_str += str(loc[4]).center(13)
+#             print_str += str(loc[5]).center(8)
+#         if remove_z:
+#             print_str += str(loc[6]).center(13)
+#             print_str += str(loc[7]).center(8)
+#         if ancilla_outcomes is not None:
+#             print_str += str(ancilla_outcomes[i]).center(anc_out_len)
+
+#         print(print_str)
+
+def print_locations(locations, extras=None):
     """
     Print the locations of faults and the final errors.
 
@@ -209,32 +268,25 @@ def print_locations(locations, remove_z=False, ancilla_outcomes=None):
     if len(locations) == 0:
         print('No bad locations')
         return
-    first_line = ' idx  gate  location  fault  final_error'
-    if len(locations[0]) > 4: first_line += '  equiv_error  weight'
-    if remove_z: first_line += '  remove_Zerr  weight'
-    if ancilla_outcomes is not None: 
-        first_line += '  ancilla_outcomes'
-        anc_out_len = max(len(ancilla_outcomes[0]),len('ancilla_outcomes')) + 2
+    first_line = ' idx  gate  location  fault   final_error'
+    if extras is not None:
+        for label, _ in extras:
+            first_line += label
     print(first_line)
+
     for i,loc in enumerate(locations):
         print_str = str(loc[0]).center(5)
         print_str += str(loc[1][0]).center(6)
-        # gate_loc = [i + 1 for i in loc[1][1]]
         gate_loc = [j for j in loc[1][1]]
         print_str += str(gate_loc).center(10)
         print_str += str(loc[2]).center(7)
-        print_str += str(loc[3]).center(13)
-        if len(locations[0]) > 4:
-            print_str += str(loc[4]).center(13)
-            print_str += str(loc[5]).center(8)
-        if remove_z:
-            print_str += str(loc[6]).center(13)
-            print_str += str(loc[7]).center(8)
-        if ancilla_outcomes is not None:
-            print_str += str(ancilla_outcomes[i]).center(anc_out_len)
+        print_str += str(loc[3]).center(15)
+        if extras is not None:
+            for i, (label, center_len) in enumerate(extras):
+                first_line += label
+                print_str += str(loc[4+i]).center(center_len)
 
         print(print_str)
-
 
 ############################## TESTING ##############################
 def test_get_faults():
