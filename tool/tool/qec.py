@@ -324,7 +324,9 @@ def get_sequence(name: str) -> Tuple[Tuple[str, Tuple[int]]]:
             ('CZ', (10, 8)),
             ('H', (10,)), ('H', (8,)), ('H', (9,)),
         ),
-        # Z_check, Lao & Almudever, Fig.4b
+        # Z-check circuit with 2 flags: Lao & Almudever, Fig.4b
+        # 3 CX-SZs together (Andrea's circuit)
+        # S1: Q1234 -> 0123
         'flag_bridge_CX_SZ1': (
             ('H', (8,)), ('H', (9,)),
             ('CX', (8, 7)),
@@ -336,6 +338,7 @@ def get_sequence(name: str) -> Tuple[Tuple[str, Tuple[int]]]:
             ('CX', (8, 7)),
             ('H', (8,)), ('H', (9,)),
         ),
+        # S2: Q3526 -> 2415
         'flag_bridge_CX_SZ2': (
             ('H', (7,)), ('H', (10,)),
             ('CX', (7, 8)),
@@ -347,6 +350,7 @@ def get_sequence(name: str) -> Tuple[Tuple[str, Tuple[int]]]:
             ('CX', (7, 8)),
             ('H', (7,)), ('H', (10,)),
         ),
+        # S3: Q6734 -> 5623
         'flag_bridge_CX_SZ3': (
             ('H', (8,)), ('H', (9,)),
             ('CX', (8, 10)),
