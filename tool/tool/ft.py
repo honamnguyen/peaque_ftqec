@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import itertools
 from typing import List, Tuple
 from tool import qec
@@ -57,6 +58,7 @@ def get_bad_locations(
 ) -> List:
     """
     Get the bad locations based on the gate sequence, fault types, and other parameters.
+    Faults are inserted AFTER each gate in the gate sequence.
 
     Args:
         gate_seq (List): List of gate sequences.
@@ -71,6 +73,9 @@ def get_bad_locations(
     """
     all_locs = []
     bad_locs = []
+    
+    gate_seq = [('I', (j,)) for j in range(num_qubits)] + list(gate_seq)
+    # loop through initial idle errors then the gate sequence
     for i, (faulty_gate, faulty_locs) in enumerate(gate_seq):
         num_locs = len(faulty_locs)
         faults = get_faults(fault_types, weight1_only)[num_locs-1]
@@ -78,13 +83,13 @@ def get_bad_locations(
             # get the starting fault string
             fault_string = get_fault_string(num_qubits, faulty_locs, fault)
             # update the fault string with the subsequent gates
-            for gate, position in gate_seq[i:]:
+            for gate, position in gate_seq[i+1:]:
                 fault_string = qec.clifford_transform(list(fault_string), gate, position)
 
             final_error = ''.join(fault_string[:num_datas]) + '|' + ''.join(fault_string[num_datas:])
-            all_locs.append([i, gate_seq[i], fault, final_error])
+            all_locs.append([max(i-num_qubits,-1), gate_seq[i], fault, final_error])
             if qec.pauli_weight(fault_string[:num_datas]) > 1:
-                bad_locs.append([i, gate_seq[i], fault, final_error])
+                bad_locs.append([max(i-num_qubits,-1), gate_seq[i], fault, final_error])
 
     if verbose == 'bad locations':
         print(' idx  gate  location  fault  final_error')
@@ -222,42 +227,6 @@ def remove_x_errors(locations: List[Tuple]) -> List[Tuple]:
             remained_locations.append(updated_locations[-1])
     return updated_locations, remained_locations
 
-# def print_locations(locations, remove_z=False, ancilla_outcomes=None):
-#     """
-#     Print the locations of faults and the final errors.
-
-#     Args:
-#         locations (List): List of locations.
-#     """
-#     if len(locations) == 0:
-#         print('No bad locations')
-#         return
-#     first_line = ' idx  gate  location  fault    final_error'
-#     if len(locations[0]) > 4: first_line += '  equiv_error  weight'
-#     if remove_z: first_line += '  remove_Zerr  weight'
-#     if ancilla_outcomes is not None: 
-#         assert len(ancilla_outcomes) == len(locations)
-#         first_line += '    ancilla_outcomes'
-#         anc_out_len = max(len(ancilla_outcomes[0]),len('ancilla_outcomes')) + 6
-#     print(first_line)
-#     for i,loc in enumerate(locations):
-#         print_str = str(loc[0]).center(5)
-#         print_str += str(loc[1][0]).center(6)
-#         gate_loc = [j for j in loc[1][1]]
-#         print_str += str(gate_loc).center(10)
-#         print_str += str(loc[2]).center(7)
-#         print_str += str(loc[3]).center(15)
-#         if len(locations[0]) > 4:
-#             print_str += str(loc[4]).center(13)
-#             print_str += str(loc[5]).center(8)
-#         if remove_z:
-#             print_str += str(loc[6]).center(13)
-#             print_str += str(loc[7]).center(8)
-#         if ancilla_outcomes is not None:
-#             print_str += str(ancilla_outcomes[i]).center(anc_out_len)
-
-#         print(print_str)
-
 def print_locations(locations, extras=None):
     """
     Print the locations of faults and the final errors.
@@ -287,6 +256,213 @@ def print_locations(locations, extras=None):
                 print_str += str(loc[4+i]).center(center_len)
 
         print(print_str)
+
+def run_sequences(sequences: List[str], bad_locations_only: bool = False) -> Tuple[List, List]:
+    """
+    Run sequences of gates with a single fault in the first sequence.
+    Return the propagated errors and ancilla outcomes from all faults.
+
+    Args:
+        sequences (List[str]): List of gate sequences.
+        bad_locations_only (bool): Indicator for returning only the bad locations.
+
+    Returns:
+        Tuple[List, List]: Tuple of 
+            locations: List of locations.
+            ancilla_outcomes: List of ancilla outcomes.
+    """
+    bad_locations, all_locations = get_bad_locations(
+        qec.get_sequence(sequences[0]), 'XYZ', 11, 7, 
+        weight1_only=False, verbose=''
+    )
+    
+    if bad_locations_only:
+        locations = bad_locations
+    else:
+        locations = all_locations
+
+    ancilla_outcomes = []
+    locations, outcomes = reset_ancillas(locations)
+    ancilla_outcomes.append([''.join(map(str,out)) for out in outcomes])
+
+    for sequence in sequences[1:]:
+        locations = update_locations(locations, qec.get_sequence(sequence), 7)
+        locations, outcomes = reset_ancillas(locations)
+        ancilla_outcomes.append([''.join(map(str,out)) for out in outcomes])
+
+    ancilla_outcomes = ['||'.join(out) for out in np.array(ancilla_outcomes).T]
+
+    return locations, ancilla_outcomes
+
+look_up_table = {
+    'Steane_flag_bridge_SZ': {
+        '000': '-------',
+        '100': 'X------',
+        '010': '----X--',
+        '110': '-X-----',
+        '111': '--X----',
+        '001': '------X',
+        '101': '---X---',
+        '011': '-----X-',
+        
+        '00': '-------',
+        '10': '----X--',
+        '01': '------X',
+        '11': '-----X-',
+                
+        '0': '-------',
+        '1': '------X',
+    },
+
+    'Steane_flag_bridge_SX': {
+        '000': '-------',
+        '100': 'Z------',
+        '010': '----Z--',
+        '110': '-Z-----',
+        '111': '--Z----',
+        '001': '------Z',
+        '101': '---Z---',
+        '011': '-----Z-',
+        
+        '00': '-------',
+        '10': '----Z--',
+        '01': '------Z',
+        '11': '-----Z-',
+        
+        '0': '-------',
+        '1': '------Z',
+    }
+
+}
+def process_ancillas(locations: List, ancilla_outcomes: List, synd_inds: List[int]) -> Tuple[List, List]:
+    """
+    Process the ancilla outcomes and return the updated locations with information about syndromes and flags.
+
+    Args:
+        locations (List): List of locations.
+        ancilla_outcomes (List): List of ancilla outcomes.
+        synd_inds (List[int]): List of syndrome indices.
+
+    Returns:
+        Tuple[List, List]: Tuple of 
+            updated_locations: List of updated locations.
+            syndromes: List of syndromes.
+    """
+    flags = []
+    syndromes = []
+    assert len(ancilla_outcomes[0].split('||')) == len(synd_inds)
+    for outcome in ancilla_outcomes:
+        ancillas = outcome.split('||')
+        syndromes.append(''.join([anc[synd_inds[i]] for i,anc in enumerate(ancillas)]))
+        flag = ''.join([anc[:synd_inds[i]]+anc[synd_inds[i]+1:] for i,anc in enumerate(ancillas)])
+        if '1' in flag:
+            flags.append(1)
+        else:
+            flags.append(0)
+
+    updated_locations = []
+    for i in range(len(syndromes)):
+        updated_locations.append(locations[i] + 
+                                 [ancilla_outcomes[i], syndromes[i], flags[i]] + 
+                                 [locations[i][-1].split('|')[0]])
+    return updated_locations, syndromes
+
+def correct_errors(locations: List, syndromes: List, lut: dict) -> List:
+    """
+    Correct errors in the locations based on the syndromes and look-up table.
+
+    Args:
+        locations (List): List of locations.
+        syndromes (List): List of syndromes.
+        lut (dict): Look-up table.
+
+    Returns:
+        List: List of updated locations.
+    """
+    updated_locations = []
+    for i in range(len(syndromes)):
+        error = locations[i][-1]
+        corrected_error = qec.compose_two_paulis(error,list(lut[syndromes[i]]))
+        updated_locations.append(locations[i] + [''.join(corrected_error)])
+    return updated_locations
+
+def check_ft(sequences: List[str], synd_inds: List[int], lut_name: str, stabilizer_group, verbose: int = 2) -> bool:
+    """
+    Check the fault tolerance of gate sequences.
+
+    Args:
+        sequences (List[str]): List of gate sequences, each is a stabilizer check circuit.
+        synd_inds (List[int]): List of syndrome indices.
+        lut_name (str): Look-up table name.
+        stabilizer_group: Stabilizer group.
+        verbose (int):
+            0: No output.
+            1: Print only the harmful errors.
+            2: Print all errors.
+
+    Returns:
+        bool: True if the fault tolerance is satisfied, False otherwise.
+    """
+    locations, ancilla_outcomes =  run_sequences(sequences, bad_locations_only=False)
+    print_extras = []
+    # process ancilla outcomes
+    locations, syndromes = process_ancillas(locations, ancilla_outcomes, synd_inds)
+    print_extras += [('    ancilla_outcomes', max(len(ancilla_outcomes[0]),16) + 4)]
+    print_extras += [('  synds',6), ('  flag',6),  ('   final ',9)]
+
+    # correct errors
+    locations = correct_errors(locations, syndromes, look_up_table[lut_name])
+    print_extras += [('  corrected', 12)]
+
+    # update bad locations when modulo the stabilizer group
+    locations, _, _ = modulo_stabilizers(locations, stabilizer_group, True)
+    print_extras += [('  equiv_error',12), ('  wt',6)]
+
+    if lut_name[-1] == 'Z':
+        # remove X errors
+        locations, remaining_locations = remove_x_errors(locations)
+        print_extras += [('  remove_Xerr',10), ('  wt',8)]
+    elif lut_name[-1] == 'X':
+        # remove Z errors
+        locations, remaining_locations = remove_z_errors(locations)
+        print_extras += [('  remove_Zerr',10), ('  wt',8)]
+
+    if verbose > 0:
+        ent_gate, stab = sequences[0].split('_')[-2:]
+        print(f'\n------All harmful errors from {stab} circuit with {ent_gate}------')
+        print_locations(remaining_locations, print_extras)
+
+    ################ check flags and syndromes ################
+    unflagged_locations = []
+    flagged_synd0_locations = []
+    flagged_synd1_locations = []
+
+    unflagged_weight2 = False
+    for loc in locations:
+        if loc[6] == 1:
+            if '1' in loc[5]:
+                flagged_synd1_locations.append(loc)
+            else:
+                flagged_synd0_locations.append(loc)
+        else:
+            unflagged_locations.append(loc)
+            if loc[-1] > 1:
+                unflagged_weight2 = True
+    assert unflagged_weight2 == False
+
+    if verbose > 1:
+        print('\n------Unflagged locations (accepted)------')
+        print_locations(unflagged_locations, print_extras)
+        print('-----Unflagged weight > 1:',unflagged_weight2)
+
+        print('\n------Flagged locations with synd=0 (rejected)------')
+        print_locations(flagged_synd0_locations, print_extras)
+
+        print('\n------Flagged locations with synd=1 (rejected)------')
+        print_locations(flagged_synd1_locations, print_extras)
+
+    return not unflagged_weight2
+
 
 ############################## TESTING ##############################
 def test_get_faults():
@@ -347,6 +523,51 @@ def test_remove_z_errors():
     print('>> remove_z_errors - No Test <<')
     pass
 
+def test_check_ft():
+    """
+    Test the check_ft function.
+    """
+
+    test_cases = []
+
+    # Steane code:
+    stabilizer_generators = ['ZZZZ---','-ZZ-ZZ-','--ZZ-ZZ',
+                         'XXXX---','-XX-XX-','--XX-XX'] #, 'XXXXXXX']
+    stabilizer_generators = [list(stab) for stab in stabilizer_generators]
+    stabilizer_group = qec.compute_stabilizer_group(stabilizer_generators)
+
+    # 3 SZ plaquettes with CX
+    test_cases.append([['flag_bridge_CX_SZ1','flag_bridge_CX_SZ2','flag_bridge_CX_SZ3'],
+                       [0,1,3], 'Steane_flag_bridge_SZ', stabilizer_group])
+    test_cases.append([['flag_bridge_CX_SZ2','flag_bridge_CX_SZ3'],
+                       [1,3], 'Steane_flag_bridge_SZ', stabilizer_group])
+    test_cases.append([['flag_bridge_CX_SZ3'],
+                       [3], 'Steane_flag_bridge_SZ', stabilizer_group])
+    # 3 SX plaquettes with CX    
+    test_cases.append([['flag_bridge_CX_SX1','flag_bridge_CX_SX2','flag_bridge_CX_SX3'],
+                       [0,1,3], 'Steane_flag_bridge_SX', stabilizer_group])
+    test_cases.append([['flag_bridge_CX_SX2','flag_bridge_CX_SX3'],
+                       [1,3], 'Steane_flag_bridge_SX', stabilizer_group])
+    test_cases.append([['flag_bridge_CX_SX3'],
+                       [3], 'Steane_flag_bridge_SX', stabilizer_group])
+    # 3 SZ plaquettes with CZ
+    test_cases.append([['flag_bridge_CZ_SZ1','flag_bridge_CZ_SZ2','flag_bridge_CZ_SZ3'],
+                       [0,1,3], 'Steane_flag_bridge_SZ', stabilizer_group])
+    test_cases.append([['flag_bridge_CZ_SZ2','flag_bridge_CZ_SZ3'],
+                       [1,3], 'Steane_flag_bridge_SZ', stabilizer_group])
+    test_cases.append([['flag_bridge_CZ_SZ3'],
+                       [3], 'Steane_flag_bridge_SZ', stabilizer_group])
+    # 3 SX plaquettes with CZ
+    test_cases.append([['flag_bridge_CZ_SX1','flag_bridge_CZ_SX2','flag_bridge_CZ_SX3'],
+                       [0,1,3], 'Steane_flag_bridge_SX', stabilizer_group])
+    test_cases.append([['flag_bridge_CZ_SX2','flag_bridge_CZ_SX3'],
+                       [1,3], 'Steane_flag_bridge_SX', stabilizer_group])
+    test_cases.append([['flag_bridge_CZ_SX3'],
+                       [3], 'Steane_flag_bridge_SX', stabilizer_group])
+
+    run_test([test_cases, [True]*len(test_cases)], lambda x: check_ft(*x, verbose=0), 'check_ft')
+    
+
 def test_all():
 
     print(f'\nTesting functions in {os.path.basename(__file__)} ...\n')
@@ -357,6 +578,7 @@ def test_all():
     test_reset_ancillas()
     test_modulo_stabilizers()
     test_remove_z_errors()
+    test_check_ft()
     print()
     print()
 
