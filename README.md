@@ -1,5 +1,5 @@
 # PEAQUE - Fault-Tolerance Quantum Error Correction
-- Fault-tolerance verification: see [ft_verification notebook](analysis/ft_verification.ipynb)
+- Fault-tolerance encoding verification: [ft_encoding_verification notebook](analysis/ft_encoding_verification.ipynb)
 
 
 ## Installation guide
