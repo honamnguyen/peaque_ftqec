@@ -237,19 +237,19 @@ def print_locations(locations, extras=None):
     if len(locations) == 0:
         print('No bad locations')
         return
-    first_line = ' idx  gate  location  fault   final_error'
+    first_line = ' idx gate  loc  fault  final_error'
     if extras is not None:
         for label, _ in extras:
             first_line += label
     print(first_line)
 
     for i,loc in enumerate(locations):
-        print_str = str(loc[0]).center(5)
-        print_str += str(loc[1][0]).center(6)
+        print_str = str(loc[0]).center(4)
+        print_str += str(loc[1][0]).center(4)
         gate_loc = [j for j in loc[1][1]]
-        print_str += str(gate_loc).center(10)
-        print_str += str(loc[2]).center(7)
-        print_str += str(loc[3]).center(15)
+        print_str += str(gate_loc).center(9)
+        print_str += str(loc[2]).center(4)
+        print_str += str(loc[3]).center(14)
         if extras is not None:
             for i, (label, center_len) in enumerate(extras):
                 first_line += label
@@ -290,7 +290,7 @@ def run_sequences(sequences: List[str], bad_locations_only: bool = False) -> Tup
         locations, outcomes = reset_ancillas(locations)
         ancilla_outcomes.append([''.join(map(str,out)) for out in outcomes])
 
-    ancilla_outcomes = ['||'.join(out) for out in np.array(ancilla_outcomes).T]
+    ancilla_outcomes = ['|'.join(out) for out in np.array(ancilla_outcomes).T]
 
     return locations, ancilla_outcomes
 
@@ -334,14 +334,14 @@ look_up_table = {
     }
 
 }
-def process_ancillas(locations: List, ancilla_outcomes: List, synd_inds: List[int]) -> Tuple[List, List]:
+def process_ancillas(locations: List, ancilla_outcomes: List, used_anc_inds: List[List[int]]) -> Tuple[List, List]:
     """
     Process the ancilla outcomes and return the updated locations with information about syndromes and flags.
 
     Args:
         locations (List): List of locations.
         ancilla_outcomes (List): List of ancilla outcomes.
-        synd_inds (List[int]): List of syndrome indices.
+        used_anc_inds (List[List[int]]): List of used ancilla indices.
 
     Returns:
         Tuple[List, List]: Tuple of 
@@ -350,15 +350,27 @@ def process_ancillas(locations: List, ancilla_outcomes: List, synd_inds: List[in
     """
     flags = []
     syndromes = []
-    assert len(ancilla_outcomes[0].split('||')) == len(synd_inds)
+    assert len(ancilla_outcomes[0].split('|')) == len(used_anc_inds)
     for outcome in ancilla_outcomes:
-        ancillas = outcome.split('||')
-        syndromes.append(''.join([anc[synd_inds[i]] for i,anc in enumerate(ancillas)]))
-        flag = ''.join([anc[:synd_inds[i]]+anc[synd_inds[i]+1:] for i,anc in enumerate(ancillas)])
-        if '1' in flag:
-            flags.append(1)
-        else:
-            flags.append(0)
+        ancillas = outcome.split('|')
+        synd = ''
+        flag = []       
+        for i, anc in enumerate(ancillas):
+            synd_ind = used_anc_inds[i][0]
+            flag_inds = used_anc_inds[i][1:]
+            synd += anc[synd_ind]
+            flag.append(''.join([anc[j] for j in flag_inds]))
+        flag = '|'.join(flag)
+
+        syndromes.append(synd)
+        flags.append(flag)
+
+        # syndromes.append(''.join([anc[used_anc_inds[i]] for i,anc in enumerate(ancillas)]))
+        # flag = ''.join([anc[:used_anc_inds[i]]+anc[used_anc_inds[i]+1:] for i,anc in enumerate(ancillas)])
+        # if '1' in flag:
+        #     flags.append(1)
+        # else:
+        #     flags.append(0)
 
     updated_locations = []
     for i in range(len(syndromes)):
@@ -386,13 +398,13 @@ def correct_errors(locations: List, syndromes: List, lut: dict) -> List:
         updated_locations.append(locations[i] + [''.join(corrected_error)])
     return updated_locations
 
-def check_ft(sequences: List[str], synd_inds: List[int], lut_name: str, stabilizer_group, verbose: int = 2) -> bool:
+def check_ft(sequences: List[str], used_anc_inds: List[List[int]], lut_name: str, stabilizer_group, verbose: int = 2) -> bool:
     """
     Check the fault tolerance of gate sequences.
 
     Args:
         sequences (List[str]): List of gate sequences, each is a stabilizer check circuit.
-        synd_inds (List[int]): List of syndrome indices.
+        used_anc_inds (List[List[int]]): List of used ancilla indices.
         lut_name (str): Look-up table name.
         stabilizer_group: Stabilizer group.
         verbose (int):
@@ -406,9 +418,9 @@ def check_ft(sequences: List[str], synd_inds: List[int], lut_name: str, stabiliz
     locations, ancilla_outcomes =  run_sequences(sequences, bad_locations_only=False)
     print_extras = []
     # process ancilla outcomes
-    locations, syndromes = process_ancillas(locations, ancilla_outcomes, synd_inds)
-    print_extras += [('    ancilla_outcomes', max(len(ancilla_outcomes[0]),16) + 4)]
-    print_extras += [('  synds',6), ('  flag',6),  ('   final ',9)]
+    locations, syndromes = process_ancillas(locations, ancilla_outcomes, used_anc_inds)
+    print_extras += [('  ancilla_outcomes', max(len(ancilla_outcomes[0]),14) + 4)]
+    print_extras += [(' synds',5), ('   flags  ',10),  ('  final ',9)]
 
     # correct errors
     locations = correct_errors(locations, syndromes, look_up_table[lut_name])
@@ -416,16 +428,16 @@ def check_ft(sequences: List[str], synd_inds: List[int], lut_name: str, stabiliz
 
     # update bad locations when modulo the stabilizer group
     locations, _, _ = modulo_stabilizers(locations, stabilizer_group, True)
-    print_extras += [('  equiv_error',12), ('  wt',6)]
+    print_extras += [('   equiv',8), ('  wt',4)]
 
     if lut_name[-1] == 'Z':
         # remove X errors
         locations, remaining_locations = remove_x_errors(locations)
-        print_extras += [('  remove_Xerr',10), ('  wt',8)]
+        print_extras += [('  remove_X',8), ('  wt',8)]
     elif lut_name[-1] == 'X':
         # remove Z errors
         locations, remaining_locations = remove_z_errors(locations)
-        print_extras += [('  remove_Zerr',10), ('  wt',8)]
+        print_extras += [('  remove_Z',8), (' wt',6)]
 
     if verbose > 0:
         ent_gate, stab = sequences[0].split('_')[-2:]
@@ -439,7 +451,7 @@ def check_ft(sequences: List[str], synd_inds: List[int], lut_name: str, stabiliz
 
     unflagged_weight2 = False
     for loc in locations:
-        if loc[6] == 1:
+        if '1' in loc[6]:
             if '1' in loc[5]:
                 flagged_synd1_locations.append(loc)
             else:
@@ -538,32 +550,32 @@ def test_check_ft():
 
     # 3 SZ plaquettes with CX
     test_cases.append([['flag_bridge_CX_SZ1','flag_bridge_CX_SZ2','flag_bridge_CX_SZ3'],
-                       [0,1,3], 'Steane_flag_bridge_SZ', stabilizer_group])
+                       [[0,1,2],[1,0,3],[3,1,2]], 'Steane_flag_bridge_SZ', stabilizer_group])
     test_cases.append([['flag_bridge_CX_SZ2','flag_bridge_CX_SZ3'],
-                       [1,3], 'Steane_flag_bridge_SZ', stabilizer_group])
+                       [[1,0,3],[3,1,2]], 'Steane_flag_bridge_SZ', stabilizer_group])
     test_cases.append([['flag_bridge_CX_SZ3'],
-                       [3], 'Steane_flag_bridge_SZ', stabilizer_group])
+                       [[3,1,2]], 'Steane_flag_bridge_SZ', stabilizer_group])
     # 3 SX plaquettes with CX    
     test_cases.append([['flag_bridge_CX_SX1','flag_bridge_CX_SX2','flag_bridge_CX_SX3'],
-                       [0,1,3], 'Steane_flag_bridge_SX', stabilizer_group])
+                       [[0,1,2],[1,0,3],[3,1,2]], 'Steane_flag_bridge_SX', stabilizer_group])
     test_cases.append([['flag_bridge_CX_SX2','flag_bridge_CX_SX3'],
-                       [1,3], 'Steane_flag_bridge_SX', stabilizer_group])
+                       [[1,0,3],[3,1,2]], 'Steane_flag_bridge_SX', stabilizer_group])
     test_cases.append([['flag_bridge_CX_SX3'],
-                       [3], 'Steane_flag_bridge_SX', stabilizer_group])
+                       [[3,1,2]], 'Steane_flag_bridge_SX', stabilizer_group])
     # 3 SZ plaquettes with CZ
     test_cases.append([['flag_bridge_CZ_SZ1','flag_bridge_CZ_SZ2','flag_bridge_CZ_SZ3'],
-                       [0,1,3], 'Steane_flag_bridge_SZ', stabilizer_group])
+                       [[0,1,2],[1,0,3],[3,1,2]], 'Steane_flag_bridge_SZ', stabilizer_group])
     test_cases.append([['flag_bridge_CZ_SZ2','flag_bridge_CZ_SZ3'],
-                       [1,3], 'Steane_flag_bridge_SZ', stabilizer_group])
+                       [[1,0,3],[3,1,2]], 'Steane_flag_bridge_SZ', stabilizer_group])
     test_cases.append([['flag_bridge_CZ_SZ3'],
-                       [3], 'Steane_flag_bridge_SZ', stabilizer_group])
+                       [[3,1,2]], 'Steane_flag_bridge_SZ', stabilizer_group])
     # 3 SX plaquettes with CZ
     test_cases.append([['flag_bridge_CZ_SX1','flag_bridge_CZ_SX2','flag_bridge_CZ_SX3'],
-                       [0,1,3], 'Steane_flag_bridge_SX', stabilizer_group])
+                       [[0,1,2],[1,0,3],[3,1,2]], 'Steane_flag_bridge_SX', stabilizer_group])
     test_cases.append([['flag_bridge_CZ_SX2','flag_bridge_CZ_SX3'],
-                       [1,3], 'Steane_flag_bridge_SX', stabilizer_group])
+                       [[1,0,3],[3,1,2]], 'Steane_flag_bridge_SX', stabilizer_group])
     test_cases.append([['flag_bridge_CZ_SX3'],
-                       [3], 'Steane_flag_bridge_SX', stabilizer_group])
+                       [[3,1,2]], 'Steane_flag_bridge_SX', stabilizer_group])
 
     run_test([test_cases, [True]*len(test_cases)], lambda x: check_ft(*x, verbose=0), 'check_ft')
     
