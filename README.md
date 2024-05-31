@@ -1,4 +1,6 @@
-# PEAQUE - Fault-tolerance Quantum Error Correction
+# PEAQUE - Fault-Tolerance Quantum Error Correction
+- Fault-tolerance verification: see [ft_verification notebook](analysis/ft_verification.ipynb)
+
 
 ## Installation guide
 - Create a `conda` environment `ENV_NAME`: 
