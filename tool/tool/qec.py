@@ -511,15 +511,36 @@ def lowest_weight_equivalent(error: List[str], stabilizer_group: List[List[str]]
     Returns:
         Tuple[List[str], int]: The lowest weight equivalent error and its weight.
     """
+    # def get_first_nontrivial_ind(error):
+    #     for i in range(len(error)):
+    #         if error[i] != '-':
+    #             return i
+    #     return len(error)+1
+
+    if type(error) == str:
+        error = list(error)
+
     min_weight = pauli_weight(error)
-    min_weight_error = error
+    min_weight_errors = [error]
+    # ind = get_first_nontrivial_ind(error)
     for elem in stabilizer_group:
         equiv_error = compose_two_paulis(elem, error)
         weight = pauli_weight(equiv_error)
         if weight < min_weight:
             min_weight = weight
-            min_weight_error = equiv_error
-    return min_weight_error, min_weight
+            min_weight_errors = [equiv_error]
+            # ind = get_first_nontrivial_ind(equiv_error)
+        # pick the one with smallest first nontrivial index
+        if weight == min_weight:
+            min_weight_errors.append(equiv_error)
+            # ind_new = get_first_nontrivial_ind(equiv_error)
+            # if ind_new < ind:
+            #     min_weight = weight
+            #     min_weight_error = equiv_error
+            #     ind = ind_new
+    # print(min_weight_errors)
+    min_weight_errors.sort()        
+    return min_weight_errors[0], min_weight
 
 ############################## TESTING ##############################
 

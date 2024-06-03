@@ -1,6 +1,6 @@
 import itertools
 from qulacs import QuantumState, QuantumCircuit
-from qulacs.gate import Measurement, H, CNOT, CZ, X
+from qulacs.gate import Measurement, H, CNOT, CZ, X, Adaptive
 from tool.testing import run_test
 import os
 
@@ -28,7 +28,7 @@ gatedict = {
     'Meas': Measurement,
 }
 
-def run_stabilizer_circuit(gate_sequence: list[tuple[str, tuple[int]]], num_qubits: int, num_meas: int,
+def run_stabilizer_circuit_old(gate_sequence: list[tuple[str, tuple[int]]], num_qubits: int, num_meas: int,
                            target_outcomes: str = None, verbose: bool = False) -> tuple[QuantumState, str]:
     """
     Run a stabilizer circuit with the given gate sequence.
@@ -65,6 +65,49 @@ def run_stabilizer_circuit(gate_sequence: list[tuple[str, tuple[int]]], num_qubi
         # run the remaining circuit after the last Measurement
         if gate != 'Meas':
             circuit.update_quantum_state(state)   
+
+        anc_meas = ''.join([str(state.get_classical_value(i)) for i in range(num_meas)])
+
+        if target_outcomes is None:
+            break
+
+    if verbose:
+        print(f'ancilla meas: {anc_meas}')
+        print_state(state.get_vector(), computational_states)
+
+    return state, anc_meas
+
+def run_stabilizer_circuit(gate_sequence: list[tuple[str, tuple[int]]], num_qubits: int, num_meas: int,
+                           target_outcomes: str = None, verbose: bool = False) -> tuple[QuantumState, str]:
+    """
+    Run a stabilizer circuit with the given gate sequence.
+
+    Args:
+        gate_sequence (list[tuple[str, tuple[int]]]): List of gates and their positions.
+        num_qubits (int): Number of qubits in the circuit.
+        num_meas (int): Number of measurement qubits.
+        target_outcomes (str): Target outcomes for the ancilla measurements.
+        verbose (bool): Whether to print verbose output.
+
+    Returns:
+        tuple[QuantumState, str]: The final quantum state and the ancilla measurement outcomes.
+    """
+    computational_states = [''.join(map(str,i))[::-1] for i in itertools.product([0, 1], repeat=num_qubits)]
+    anc_meas = ''
+
+    circuit = QuantumCircuit(num_qubits)
+    for gate, pos in gate_sequence:
+        circuit.add_gate(gatedict[gate](*pos))
+        # reset qubit manually at each Measurement
+        if gate == 'Meas':
+            Reset = Adaptive(X(pos[0]), lambda register: register[-1] == 1)
+            circuit.add_gate(Reset)
+
+    while anc_meas != target_outcomes:
+
+        state = QuantumState(num_qubits)
+        state.set_zero_state()
+        circuit.update_quantum_state(state)   
 
         anc_meas = ''.join([str(state.get_classical_value(i)) for i in range(num_meas)])
 
