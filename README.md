@@ -24,7 +24,8 @@ python -m ipykernel install --user --name=ENV_NAME
 ```
 - For example, run the following commands to install necessary packages to a `ftqec` environment:
 ```
-# In peaque_ftqec folder
+git clone https://github.com/honamnguyen/peaque_ftqec.git
+cd peaque_ftqec
 conda create -n ftqec python==3.10
 conda activate ftqec
 pip install -r requirements.txt
