@@ -1,0 +1,15 @@
+### scientific computing ###
+numpy
+
+### utility ###
+ipykernel
+ipywidgets
+tqdm
+
+### data manimulation and visualization ###
+matplotlib
+pickle5
+pandas
+
+### quantum ###
+qulacs==0.5.6
