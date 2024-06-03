@@ -3,6 +3,11 @@
 - Figures of merit: [figures_of_metri notebook](analysis/figures_of_merit.ipynb)
 
 ## Installation guide
+- Clone this repository and change directory
+```
+git clone https://github.com/honamnguyen/peaque_ftqec.git
+cd peaque_ftqec
+```
 - Create a `conda` environment `ENV_NAME`: 
 ```
 conda create -n ENV_NAME python==3.10
