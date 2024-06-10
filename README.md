@@ -1,6 +1,6 @@
 # PEAQUE - Fault-Tolerance Quantum Error Correction
 - Fault-tolerance encoding verification: [ft_encoding_verification notebook](analysis/ft_encoding_verification.ipynb)
-- Figures of merit: [figures_of_metri notebook](analysis/figures_of_merit.ipynb)
+- Figures of merit: [figures_of_merit notebook](analysis/figures_of_merit.ipynb)
 
 ## Installation guide
 - Clone this repository and change directory
